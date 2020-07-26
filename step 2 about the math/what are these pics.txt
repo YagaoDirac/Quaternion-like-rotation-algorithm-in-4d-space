@@ -1,0 +1,8 @@
+To explain the core function of D4D_rotate(...), I tried to derive.
+31.png shows the fomular utilized in D4D_rotate(...) as a whole.
+32.png and 33.png each shows a part of the halfway result in 31.png
+(Why starts with 31? Because 11 and 21 already exist.)
+34.png shows how the units interact with each other. The result of v2*v1 has 2 parts, single unit part and triple unit part. It's very clear, no matter for which part, they result in another 2 parts(single and triple), with the same form as before.
+35.png shows for all the items in the result of v2*v1*v2 with unit of "ijk", they sum up to 0. I think this is enough for all the triple unit parts. They shall all sum up to 0.
+
+By the way, if you are curious about the notes, they are simplified Chinese language, generally know an Ch-s. A kind of Manderin. The first line means: this is only the unit part, remember to bring coefficients. Second line in 35 means: look at the triple unit part first. In 36: look at the "i" part first.

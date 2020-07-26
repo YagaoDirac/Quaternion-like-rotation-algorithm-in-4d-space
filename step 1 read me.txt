@@ -1,0 +1,224 @@
+Quaternion-like style of rotation algorithm.
+
+Author: YagaoDirac
+
+Preface:
+Quaternion is a very famous and beautiful rotation algorithm in 3d space.
+3 or 4 year ago, in a casual chatting to my internet friend, I mentioned the possibility to construct a corresponding algorithm according to quaternion which works in 4d space. But that was too hard for me at that time.
+3days ago, I came up with an idea that, constructing method might have a chance to work on this. But the tranditional method of scale tranditional quaternion directly into 4d case does not work. So, I need a new algorithm.
+Finally, the code works. It at least rotate a 4d vector. But it does not have the ability to do septernion*septernion, means the merging of rotation is not implemented yet.
+Anyway, hope you enjoy it.
+
+
+Content:
+[1, introduction]
+[2, Rotating a 3d vector with new style quaternion]
+[3, Rotating a 2d vector]
+[4, Merging of rotations in 2d]
+[5, Merging of rotations in 3d with new style quaternion]
+[6, A little discuss about merging of rotations in 4d]
+[7, A little discuss about quaternion-like style in 5d]
+
+
+[1, introduction]
+After 2 days of hard working. I'm not gonna push this project any further recently.
+Something within math aspect is not completed yet.
+Theoretically, quaternion has 3 main features.
+//用法，合并，生成
+First, to rotate a vector in 3d space, it's simple as quaternion*vector*conjugation of the same quaternion. Conjugation is also simple, taking the opposite value for all the numbers with imaginary units after it.
+Second, when 2 quaternions affect one vector in a specific sequency, they clamp the vector one by one. Q2*(Q1*v*cQ1)cQ2 always does, where cQ represents the conjugation of a quaternion. Associative property can always do between any strings of quaternions and vectors. What's more, according to associative, Q2*(Q1*v... equals (Q2*Q1)*v... And quaternion * quaternion is also a quaternion. What's more, c(Q2*Q1)==cQ1*cQ2 .
+(I can't remember the detail, or whether this is correct. If Q1==r1+v1, Q1*Q2==r1r2+r1v2+r2v1+v1 multi v2, v1 multi v2==v1 cross v2 -v1 dot v2. So, Q1*Q2 == (r1r2-v1 dot v2)+(r1v2+r2v1+v1 cross v2), first bracket is real number, second is vector3. According to the classic and widely known way. c(Q1*Q2) means opposite v1 and v2, and the only difference between Q1Q2 and Q2Q1 is the cross production. I think the info is enough.)
+So, Q2*(Q1*v*cQ1)cQ2== (Q2*Q1)*v*(c*(Q2*Q1)). In this way, the production between quaternions occur only once. 
+Third, quaternion is very easy to get figured out from some corresponding info. Generally, for a rotation around an line with a direction vector v1, and the rotation angle is a, the quaternion is (cos(a/2)+v1*sin(a/2)). This fomular connects rotations with its "core".
+
+So, if the quaternion style could be scaled to 4d space, the corresponding conception has to satisfy all the 3 features upon.
+In my project for now(2020-jul-26), the 1st one is perfectly satisfied. The second is some what that has a chance to have. The third is basically satisfied, at least the code gives out the correct results.
+
+I construct the new model like a set of 7 numbers(but it's probably gonna be 8), with a name septernion as the code shows now. In the project, there are 3 classes. Vector 4d and plane 4d are very intuitive. I'm not gonna talk anything about them. The third class is D4D_septernion. To set value for it, you need to provide a plane and an angle. Theoretically, rotation is a transform that along 2 axis or a plane, so the "core" for a rotation is always n-2 dimentional object(where n is the count of dimention of the space.) Means, locking up all dimentions except for only 2, and all the component vector along the locked dimentions keeps the same, while the perpendicular one along the unlocked 2 dimention varies. The component vectors both keep their length. After that, the 2 vectors combines to the result. So, the septernion is designed to contain the info for the transforming. In my second design(The first failed alreay. Not gonna mention it at all.), a septernion is (r +a ij +b ik +c il +d jk +e jl +f kl), all the i j k l are imaginary units. Notice all the imaginary items have 2 units for each. In this way, septernion*vector4(if apply ijkl to vector as well, and it's represented like xi+yj+zk+wl), has 3 situations. 1) real number in septernion * item in vector, such as r*xi, the result is with single unit. 2) double unit item * item in vector and they share one unit among the 2, such as, aij*xi, result is axj. It's single unit item too. 3) if in 2), they don't share any units, djk*xi, result is dx ijk. It's triple. So the result has 2 kind of items, single-unit-item and triple-unit-item. If I had specified ijk==l, which allows some simplification here, but it also collapses the septernion. If ijk==l, then ijkk==lk >>>-ij==lk >>> ij==kl. In this way, septernion collapses to (r +(a+f)ij+(b+e)ik+(c+d)il) which could only represents 3 ways of transform and they all associate with axis of X. But if a rotation is along plane xOy, the result shares the same x and y component value with the input vector. So, ijk!=l. And ij!=kl.
+By the way, I think it's important to set up the way the units interact and its geometry explaination. A simple way to understand the unit system is, in 3d space, i represente(1,0,0), j for (0,1,0), k for (0,0,1). This explain why vectors are always write in a form of xi+yj+zk and so on. But for rotation, it's a relationship of exchange between 2 axis. Intuitively, rotation needs 2 units to represent. But it's confusing that, rotation share the same units system or say, units symbols with the vector. Say, ij, it means the relationship between x axis and y axis. For (1,0,0),if it rotates along z axis, no matter how many degrees it rotates, the x*x+y*y is always 1. And it's easy to proof, the result is (cos angle, sin angle,0). Simply put, for 90 degrees, result is j or -j. So ,the algebraic i*ij or i*ji, ij*i, ji*i, has to turn into j or -j. But notice in the whole system, only one form appears, that is single-unit-item multiplied by double-unit-item, or in another sequence. We still have to define some more, what about single*single, the two share or not share the unit? What about double*double, they share 0,1 or 2 units?
+I prefer to do this work according to the geometry foundation. But before this, let's check the situation in 3d and 2d first.
+
+
+[2, Rotating a 3d vector with new style quaternion]
+According to the tranditional quaternion design, it's (r + xi +yj +zk). The rules contain ii=-1, ij=-ji, and ij==k. But if ij==k, the quaternion collapses into (r+ xi +yj +z ij) which has only 2 units. I con't accept that (1,0,0)multiplies (0,1,0) and results (0,0,1) in according to any explaination. 3 axs share the equivalent stating. And according to "double-unit-item representes rotation operattion", another way to construct quaternion is (r + aij +bik +cjk) with rules:ii=-1, ij=-ji, ij!=k. r is also the cos value of half-angle. a is z*sin(half angle). 
+For quaternion * vector:
+(r + aij +bik +cjk)*(xi +yj +zk)
+==r*(xi +yj +zk)+(aij +bik +cjk)*(xi +yj +zk)
+  < first part >|<       second part        >
+
+The first part is ok. It looks neat and graceful.
+Now let's move on to the second part.
+     |  (aij        +bik          +cjk)
+(xi  |  ax j(iji)   bx k(iki)     cx ijk(jki)
++yj  |  -ay i(ijj)  -by ijk(ikj)  cy k(jkj)
++zk) |  az ijk      -bz i(ikk)    -cz j(jkk)
+//inside brackets is the original result from production for the unit part.
+Derived into
+second part==i(-ay -bz)+j(ax-cz)+k(bx+cy) + ijk(cx-by+az)// ===正确 correct===
+/*
+Now:(r + aij +bik +cjk)*(xi +yj +zk) ==r*(xi +yj +zk) +  i(-ay -bz)+j(ax-cz)+k(bx+cy) + ijk(cx-by+az)
+And then, 
+(r + aij +bik +cjk)*(xi +yj +zk)*(r - aij -bik -cjk)
+==(r*(xi +yj +zk) + i(-ay -bz)+j(ax-cz)+k(bx+cy) + ijk(cx-by+az))*(r - aij -bik -cjk)
+*/
+
+Or informally, Q= r+v, Vec is the vector, cQ is conjugation of Q
+Q*V*cQ== (r+v)*Vec*(r-v)
+==(r Vec + v Vec)(r-v)
+==rr Vec +r v Vec -r Vec v- v Vec v
+The v Vec is the "second part" upon. How about the Vec v? The only difference is the units. Because all the scalars could be extracted and moved to the left end of each item. Only the imaginary units are sensitive to sequence. For i*ij(==-j) and ij*i(==j), they are opposite. For i*jk(==ijk) and jk*i(==ijk), they are the same. Means: the single-unit-part(v*Vec)==-single-unit-part(Vec*v) and the triple-unit-part(v*Vec)==triple-unit-part(Vec*v). So, v Vec-Vec v ==2*single-unit-part(v*Vec)
+Q*V*cQ== (r+v)*Vec*(r-v)
+==rr Vec + 2r*single-unit-part(v*Vec)- v Vec v
+
+v Vec v
+==second part*v
+==(i(-ay -bz)+j(ax-cz)+k(bx+cy) + ijk(cx-by+az))*(aij +bik +cjk)
+Let's do it again. But this time, I write only the units part.
+      | i(-ay -bz)+j(ax-cz)+  k(bx+cy)+ ijk(cx-by+az)
+aij   | -j(iij)    i(jij)     ijk(kij)  -k(ijkij)   
++bik  | -k(iik)    -ijk(jik)  i(kik)    j(ijkik)     
++cjk  | ijk        -k(jjk)    j(kjk)    -i(ijkjk)
+Put the scalars in, we get:
+v Vec v
+==i(+aax-acz +bbx+bcy -ccx+bcy-acz)
+  +j(aay+abz +bcx+ccy +bcx-bby+abz)
+  +k(aby+bbz -acx+ccz -acx+aby-aaz)
+  +ijk(-acy-bcz -abx+bcz +abx+acy)//This line eliminated.
+==i(+aax +bbx -ccx +2bcy -2acz)+j(aay+ -bby +ccy +2bcx +2abz)+k(-aaz +bbz +ccz +2aby -2acx)
+==+i(+aax +bbx -ccx +2c(-az +by))
+  +j(+aay -bby +ccy +2b(+cx +az))
+  +k(-aaz +bbz +ccz +2a(+by -cx))
+
+I admit that I didn't code this to verify it. But any way, the form is almost the same as what shown in the pictures.
+If this is correct, we have a unique form to handle both 3d and 4d rotation in the tranditional-quaternion-like style.
+
+[3, Rotating a 2d vector]
+Now let's see what it looks like when it gets to 2d.
+In 2d space, the dimention count of rotation core is 2-2. I don't know whether it's exactly to say, a point is a 0d object. But widely known, rotation in 2d space is rotation around a point.
+Vector in 2d could be express as (xi+yj), where i is (1,0), j is (0,1). The only rotation operator exchange the 2 components. So, according to my definition, the 2d version of quaternion should look like (r+ aij), where i,j are imaginary units, with rules: ii=-1, ij=-ji, i!=j. Shall we call it binonion? Now let's derive.
+(cB means conjugation of binonion, B also represented as r+v
+First
+B*Vec*cB
+==(r+v)*Vec*(r-v)
+==(r Vec+v Vec)*(r-v)
+==rr Vec + r v Vec -r Vec v -v Vec v
+First part is neat.
+Now for v Vec and Vec v:
+v*Vec == aij*(xi+yj)
+== ax iji+ ay ijj
+== axj - ayi
+Vec*v == (xi+yj)*aij
+== ax iij + ay jij
+== -ax j + ay i
+The second part is 
+r v Vec -r Vec v
+==r(axj - ayi -(-ax j + ay i))
+==r(axj - ayi + axj - ayi)
+==2r(axj-ayi)
+The last part, v Vec v:
+v Vec v==(axj - ayi)*aij
+==aax jij - aay iij
+==aax i + aay j
+
+Notice, the third part in all 3 cases are minuses. In code, minus them. Or else, if you rotate (1,0) by 30 degrees, it results into (1, 0.5) rather than (0.86, 0.5).
+
+In this way, I think it possible to scale this method to any dimention.
+
+But still, I have to warn you, the cross production operator is not allowed due to ijk!=l, or in 3d the ij!=k. Cross production helps with find out the vector perpendicular with all the given n-1 vectors, for n is the count of dimention and any 2 of the given vectors must not be parallel to each other.
+
+[4, Merging of rotations in 2d]
+
+The words upon explained how the quaternion-like algorithm rotate a vector, how the quaternion-like x-nion connects with the rotation core. But the second feature I mentioned almost in the beginning of this article, combinations of rotation operators via quaternion-like method, is not proved even in the least.
+
+To gain confidence, I prefer to show you the 2d case first.
+Binonion*binonion, could, probably, work, I guess.
+(B == r+v == r + aij, cB == conjugation of B)
+(B1==r1+v1==r1+a1ij)
+B1*B2 == (r1+v1)*(r2+v2)
+==r1r2 + r1v2 + r2v1 + v1*v2
+    i  |     ii      |  iii
+Part 1 is scalar. Part 2 is vector_2d. What is part 3?
+v1*v2== a1 ij * a2 ij
+==a1a2 ijij
+Notice the unit is ijij. I didn't explain why units could be calculated. For a vector, say, (1,0) what does it mean by multiplied by itself, or some vector equals to itself? I don't have any answer to it. Another interesting thing is that, in the cases before, count of the units merged into a whole, is always odd for vectors and any results for forms of x-nion*vector. When it comes to vector*vector, the count of units is 0 or even number. I really think that if we would push any further, we have to explain this difference first. Why a vector could be multiplied by another? Dot production, cross, or even by polynomial way( results into cross minus dot). Why production of vector multiplied by another vector could be defined only with 2vectors no matter the count of dimentions, but cross production is defined with n-1 vectors? Does that mean we have to restrict the use of cross production? I have no idea. Anyway, let's continue.
+Part3:
+v1*v2== a1 ij * a2 ij
+==a1a2 ijij
+== - a1a2 
+It's a scalar.
+B1*B2 == r1r2 + r1v2 + r2v1 + v1*v2
+== r1r2-a1a2 + r1v2 + r2v1
+   real part | imaginary part
+The c(B1*B2) should be (r1r2-a1a2 - r1v2 - r2v1)
+
+How about cB2*cB1?
+cB2*cB1 == (r2-v2)*(r1-v1)
+==r1r2 - r1v2 - r2v1 + v2*v1
+For v2*v1:
+v2*v1 == a2 ij * a1 ij ==v1*v2 == - a1a2 
+So:
+cB2*cB1 
+==r1r2 - r1v2 - r2v1 + v2*v1
+==r1r2 - a1a2 - r1v2 - r2v1 ==c(B1*B2)
+Very good.
+
+Although I didn't figure out what does it mean by calculate the units directly, the result seems to be good enough.
+I'm not gonna derive the B2*(B1*v*cB1)*cB2 and (B2*B1)*v*(cB1*cB2). They should be quite similar to the quaternion case in 3d.
+
+[5, Merging of rotations in 3d with new style quaternion]
+
+OK, now for the new defined quaternion.
+(Q == r+v == r + aij + bik + cjk, cQ == conjugation of Q)
+(Q1==r1+v1==r1 + a1ij + b1ik + c1jk)
+Q1*Q2 == (r1+v1)*(r2+v2)
+==r1r2 + r1v2 + r2v1 + v1*v2
+    i  |     ii      |  iii
+Part 3 again.... I hope this would result into something looks like the cross minus dot.
+v1*v2 == (a1ij + b1ik + c1jk)*(a2ij + b2ik + c2jk)
+      | a1 ij      b1 ik      c1 jk        
+a2 ij | -1(ijij)   -jk(ikij)  ik(jkij)
+b2 ik	| jk(ijik)   -1(ikik)   -ij(jkik)
+c2 jk | -ik(ijjk)  ij(ikjk)   -1(jkjk)   
+
+v1*v2 == -1(a1a2 + b1b2 + c1c2) + ij(b1c2 - c1b2) + ik(c1a2 - a1c2) + jk(a1b2 - b1a2)
+Yeah, good, same result with cross minus dot. 
+Q1*Q2 == (r1+v1)*(r2+v2)
+==r1r2 + r1v2 + r2v1 + v1*v2
+==r1r2 -(a1a2 + b1b2 + c1c2) + r1v2 + r2v1 + ij(b1c2 - c1b2) + ik(c1a2 - a1c2) + jk(a1b2 - b1a2)
+  <       real part        > | <        <         <      imaginary part      >        >        >
+Not gonna derive any futher. Nothing could get eliminated. 4 items for real part, 4 for every imaginary unit-combination.
+
+At least, in 2d and 3d, the new way of construct x-nion work well.
+
+[6, A little discuss about merging of rotations in 4d]
+
+But when it comes to 4d, the trouble comes.
+In code, the class is named septernion, temporarily, I mean, temporarily. So, what is wrong with it? Well, if septernion*septernion, what about the ij*kl? When I thought about this last night, I feel, bad. Septernion is not possible to handle the result of the production between its own kind. For the correct construction, the model has to contain the item to handle this. Means, it octonion. So FR**King ugly. If it becomes octonion finally, pattern is, count of the element==2 ** (count of dimention-1). 2-nion for 2d, 4-nion for 3d, 8-nion for 4d, and 16 for 5d. When it comes to 7d, it's 64-nion while the rotation matrix consist of only 49 numbers.
+The whole research finally results a toy.
+Good. Very Good.
+A very last hope is that, any item has more than 2units, is always eliminated whenever the calculation stops at any meaningful, useful result. Means, in 4d, no matter how, as long as the octonions are constructe in meaningful way, their production is always with a 0 ijkl item. And 0 ijkl item in the rotation result, and the whole result gets back to a legal vector. And this hope is even vaguer for 5d.
+
+[7, A little discuss about quaternion-like style in 5d]
+
+But it still has a potential, if the construct of x-nion requires less trigonometric functions, it would have a chance to be friendly to computer calculation.
+Finally, let me show you something that has a chance to be correct.
+For 5d, rotation "core" is 3d object. If 3 vectors are parallel to the "core", and the vectors are respresented like (x,y,z,w,u). Imaginary units are i,j,k,l,m. The corresponding 16nion should look like: 
+r +?ij +?ik +?il +?im +?jk +...+?lm +?ijkl +?ijkm +?ijlm +?iklm +?jklm
+  |        double unit part         |      quadruple unit part
+To init this. First calculate the cos of the ***HALF*** angle. Assign the result to r, which is the real part. Second, x1i *y2j *z3k==x1y2z3 ijk, store it in the slot of "lm". Also, you need to calculate y1j *x2i *z3k ==y1x2z3 jik == -y1x2z3 ijk, add it to slot of "lm".
+So the final result of lm is determinant of
+|x1 y1 z1|
+|x2 y2 z2|
+|x3 y3 z3|
+The fomular should be easy to find. It's a popular linear algebra tool.
+All the slot with quadruple units are 0. Left to be 0.
+It's easy to find out, the a "core" parallel to (1,0,0,0,0), (0,1,0,0,0) and(0,0,1,0,0), the 16-nion is cos(half angle)+sin(half angle)lm. Means the rotation lock x,y and z axis and rotate the vector in wOu plane.
+Another way to calculate this,(although I can't proof why this is right. It could be wrong.) is to calculate the 2 normals for the "core", and then multiply them. Say n4 and n5 are the normals,(rather than the JLPT N4 and N5) the double units parts of a 16nion could be calculated direct by multiply n4 with n5. The ij item comes directly from (x4i*y5j + y4j*x5i). But this good looking method goes a longer way, because the calculating amount for the cross production should be even bigger than constructing the 16nion directly.
+
+
+Hope you like this.
+Good luck.
+
+Dirac
+2020 jul 26.
+
